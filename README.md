@@ -9,4 +9,8 @@ A minimalist iOS note-taking app built with SwiftUI and SwiftData.
 - Simple, distraction-free UI
 
 ## Next Feature
-- Add tagging support
+- Add Delete Folder
+- Add Archive Folde
+- Add widget funtionality
+
+
