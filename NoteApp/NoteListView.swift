@@ -11,10 +11,11 @@ extension String {
         let lowerSearch = searchText.lowercased()
         var searchStart = lowerSelf.startIndex
 
-        while let stringRange = lowerSelf.range(of: lowerSearch,
-                                                options: [],
-                                                range: searchStart..<lowerSelf.endIndex) {
-            // Convert String range → NSRange → AttributedString.Range
+        while let stringRange = lowerSelf.range(
+                of: lowerSearch,
+                options: [],
+                range: searchStart..<lowerSelf.endIndex
+        ) {
             let nsRange = NSRange(stringRange, in: self)
             if let attrRange = Range(nsRange, in: attributed) {
                 attributed[attrRange].backgroundColor = .yellow
@@ -62,7 +63,6 @@ extension String {
     }
 }
 
-// MARK: – NoteListView with Bottom Search Bar
 struct NoteListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Note.createdAt, order: .reverse) private var notes: [Note]
@@ -74,38 +74,61 @@ struct NoteListView: View {
 
     private var filteredNotes: [Note] {
         guard !searchText.isEmpty else { return notes }
-        return notes.filter {
-            $0.content.range(of: searchText, options: .caseInsensitive) != nil
+        return notes.filter { note in
+            note.content.range(of: searchText, options: .caseInsensitive) != nil
         }
     }
 
     var body: some View {
-        ZStack {
-            NavigationStack {
+        NavigationStack {
+            VStack(spacing: 0) {
+                // Header with aligned title and add button
+                HStack {
+                    Text("Notes")
+                        .font(.largeTitle)
+                        .bold()
+                    Spacer()
+                    Button {
+                        selectedNote = nil
+                        showingEditor = true
+                    } label: {
+                        Image(systemName: "plus")
+                            .font(.title2)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+
+                // Notes list
                 List {
                     ForEach(filteredNotes) { note in
                         Button {
                             selectedNote = note
                             showingEditor = true
                         } label: {
-                            VStack(alignment: .leading, spacing: 6) { // Changed spacing to 6
-                                // Title
-                                Text(note.content.snippet(containing: searchText, maxLength: 200).highlightedAttributedString(with: searchText))
-                                    .font(.headline) // Changed font to headline
-                                    .padding(.bottom, 2)
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(
+                                    note.content
+                                        .snippet(containing: searchText, maxLength: 200)
+                                        .highlightedAttributedString(with: searchText)
+                                )
+                                .font(.body)
+                                .padding(.bottom, 2)
 
-                                // Date
-                                Text(note.createdAt, format: .dateTime.month().day().year().hour().minute()) // Changed date format
-                                    .font(.subheadline) // Changed font to subheadline
-                                    .foregroundColor(.secondary) // Changed color to secondary
+                                Text(
+                                    note.createdAt,
+                                    format: .dateTime.month().day().year().hour().minute()
+                                )
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
                             }
-                            .padding(.vertical, 12) // Increased vertical touch area
-                            .padding(.horizontal, 16) // Standard horizontal margin
-                            .background(Color(.systemBackground)) // White card background
+                            .padding(.vertical, 12)
+                            .padding(.horizontal, 16)
+                            .background(Color(.systemBackground))
                             .cornerRadius(8)
                             .shadow(color: .black.opacity(0.03), radius: 2, x: 0, y: 1)
                         }
-                        .listRowInsets(EdgeInsets()) // Remove default insets
+                        .listRowInsets(EdgeInsets())
                     }
                     .onDelete { offsets in
                         withAnimation {
@@ -116,22 +139,20 @@ struct NoteListView: View {
                         }
                     }
                 }
-                .listStyle(.plain) // Set List style to .plain
-                .background(.ultraThinMaterial) // Apply a light .ultraThinMaterial background behind rows
+                .listStyle(.plain)
+                .background(.ultraThinMaterial)
                 .safeAreaInset(edge: .bottom) {
                     HStack {
                         TextField("Search notes…", text: $searchText)
-                            .padding(.vertical, 12)      // Taller tap area
-                            .padding(.horizontal, 16)    // Symmetric side padding
+                            .padding(.vertical, 12)
+                            .padding(.horizontal, 16)
                             .background(.ultraThinMaterial)
                             .cornerRadius(10)
                             .overlay {
                                 HStack {
                                     Spacer()
                                     if !searchText.isEmpty {
-                                        Button {
-                                            withAnimation { searchText = "" }
-                                        } label: {
+                                        Button { searchText = "" } label: {
                                             Image(systemName: "xmark.circle.fill")
                                                 .foregroundColor(.gray)
                                         }
@@ -140,44 +161,12 @@ struct NoteListView: View {
                                 }
                             }
                     }
-                    .padding(.horizontal, 16)         // Margin from screen edges
-                    .padding(.bottom, 20)             // Lift above home indicator
-                }
-                .navigationTitle("Notes")
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button {
-                            selectedNote = nil
-                            showingEditor = true
-                        } label: {
-                            Image(systemName: "plus")
-                                .font(.title2)
-                        }
-                    }
-                }
-                .sheet(isPresented: $showingEditor) {
-                    NoteEditorView(note: selectedNote)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 20)
                 }
             }
-
-            if !hasShownOnboarding {
-                VStack {
-                    Spacer()
-                    VStack {
-                        Text("Tap + to add a note")
-                        Button("Got it!") {
-                            withAnimation { hasShownOnboarding = true }
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .padding(.top, 5)
-                    }
-                    .padding()
-                    .background(Color.blue.opacity(0.8))
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
-                    .transition(.move(edge: .bottom))
-                    .padding(.bottom, 100)
-                }
+            .sheet(isPresented: $showingEditor) {
+                NoteEditorView(note: selectedNote)
             }
         }
     }
