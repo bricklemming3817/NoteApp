@@ -10,7 +10,7 @@ A minimalist iOS note-taking app built with SwiftUI and SwiftData.
 
 ## Next Feature
 - Delete Folder
-- Archive Folde
+- Archive Folder
 - Widget funtionality
 
 
