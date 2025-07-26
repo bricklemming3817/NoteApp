@@ -7,7 +7,7 @@ A minimalist iOS note-taking app built with SwiftUI and SwiftData.
 - Full text search with keyword highlighting
 - Simple, elegant and distraction-free UI
 
-## Next Feature
+## Next Features
 - Delete Folder
 - Archive Folder
 - Widget funtionality
