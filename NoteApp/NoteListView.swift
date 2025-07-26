@@ -88,19 +88,24 @@ struct NoteListView: View {
                             selectedNote = note
                             showingEditor = true
                         } label: {
-                            VStack(alignment: .leading, spacing: 4) {
-                                let snippet = note.content
-                                    .snippet(containing: searchText, maxLength: 200)
-                                Text(snippet.highlightedAttributedString(with: searchText))
-                                    .lineLimit(2)
-                                    .fixedSize(horizontal: false, vertical: true)
+                            VStack(alignment: .leading, spacing: 6) { // Changed spacing to 6
+                                // Title
+                                Text(note.content.snippet(containing: searchText, maxLength: 200).highlightedAttributedString(with: searchText))
+                                    .font(.headline) // Changed font to headline
+                                    .padding(.bottom, 2)
 
-                                Text(note.createdAt, format: .dateTime.year().month().day().hour().minute())
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
+                                // Date
+                                Text(note.createdAt, format: .dateTime.month().day().year().hour().minute()) // Changed date format
+                                    .font(.subheadline) // Changed font to subheadline
+                                    .foregroundColor(.secondary) // Changed color to secondary
                             }
-                            .padding(.vertical, 4)
+                            .padding(.vertical, 12) // Increased vertical touch area
+                            .padding(.horizontal, 16) // Standard horizontal margin
+                            .background(Color(.systemBackground)) // White card background
+                            .cornerRadius(8)
+                            .shadow(color: .black.opacity(0.03), radius: 2, x: 0, y: 1)
                         }
+                        .listRowInsets(EdgeInsets()) // Remove default insets
                     }
                     .onDelete { offsets in
                         withAnimation {
@@ -111,12 +116,14 @@ struct NoteListView: View {
                         }
                     }
                 }
+                .listStyle(.plain) // Set List style to .plain
+                .background(.ultraThinMaterial) // Apply a light .ultraThinMaterial background behind rows
                 .safeAreaInset(edge: .bottom) {
                     HStack {
                         TextField("Search notes…", text: $searchText)
-                            .padding(.vertical, 8)
-                            .padding(.leading, 16)
-                            .background(Color(.systemGray6))
+                            .padding(.vertical, 12)      // Taller tap area
+                            .padding(.horizontal, 16)    // Symmetric side padding
+                            .background(.ultraThinMaterial)
                             .cornerRadius(10)
                             .overlay {
                                 HStack {
@@ -133,9 +140,8 @@ struct NoteListView: View {
                                 }
                             }
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(.ultraThinMaterial)
+                    .padding(.horizontal, 16)         // Margin from screen edges
+                    .padding(.bottom, 20)             // Lift above home indicator
                 }
                 .navigationTitle("Notes")
                 .toolbar {
