@@ -13,6 +13,8 @@ import SwiftData
 final class Note {
     var content: String
     var createdAt: Date
+    var isArchived: Bool = false
+    var deletedAt: Date?
     
     init(content: String, createdAt: Date) {
         self.content = content
