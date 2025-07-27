@@ -13,4 +13,7 @@ A minimalist iOS note-taking app built with SwiftUI and SwiftData.
 - Home screen widget support
 - cool fidgeting feature to help thinking
 
+### do you have anything in mind?
+let me know https://forms.gle/uGu3n5kq5B9iED6n8
+
 
