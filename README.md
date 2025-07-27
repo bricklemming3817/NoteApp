@@ -11,6 +11,7 @@ A minimalist iOS note-taking app built with SwiftUI and SwiftData.
 
 ## Next Features
 - Home screen widget support
+- Markdown support for text editor
 - cool fidgeting feature to help thinking
 
 ### do you have anything in mind?
