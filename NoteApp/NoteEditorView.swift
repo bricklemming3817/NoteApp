@@ -34,7 +34,7 @@ struct NoteEditorView: View {
                     .focused($focusedField)
                     .onAppear { focusedField = true }
                     .font(.body)
-                    .padding(20)
+                    .padding(.horizontal,0)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             }
