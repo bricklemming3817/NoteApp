@@ -13,11 +13,13 @@ import SwiftData
 final class Note {
     var content: String
     var createdAt: Date
+    var updatedAt: Date
     var isArchived: Bool = false
     var deletedAt: Date?
     
-    init(content: String, createdAt: Date) {
+    init(content: String, createdAt: Date, updatedAt: Date? = nil) {
         self.content = content
         self.createdAt = createdAt
+        self.updatedAt = updatedAt ?? createdAt
     }
 }

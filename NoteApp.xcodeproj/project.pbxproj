@@ -6,6 +6,12 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		177F83AB2E77635F00B9F6B3 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 177F83AA2E77635F00B9F6B3 /* WidgetKit.framework */; };
+		177F83AD2E77635F00B9F6B3 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 177F83AC2E77635F00B9F6B3 /* SwiftUI.framework */; };
+		177F83BE2E77636100B9F6B3 /* NoteWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 177F83A82E77635F00B9F6B3 /* NoteWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		17559A142E34197F0017DAE6 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -21,13 +27,48 @@
 			remoteGlobalIDString = 17559A032E34197D0017DAE6;
 			remoteInfo = NoteApp;
 		};
+		177F83BC2E77636100B9F6B3 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 175599FC2E34197D0017DAE6 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 177F83A72E77635F00B9F6B3;
+			remoteInfo = NoteWidgetExtension;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		177F83C32E77636100B9F6B3 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				177F83BE2E77636100B9F6B3 /* NoteWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		17559A042E34197D0017DAE6 /* NoteApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NoteApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		17559A132E34197F0017DAE6 /* NoteAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NoteAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		17559A1D2E34197F0017DAE6 /* NoteAppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NoteAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		177F83A82E77635F00B9F6B3 /* NoteWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NoteWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		177F83AA2E77635F00B9F6B3 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		177F83AC2E77635F00B9F6B3 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		177F83C62E77659B00B9F6B3 /* NoteWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NoteWidgetExtension.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		177F83BF2E77636100B9F6B3 /* Exceptions for "NoteWidget" folder in "NoteWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 177F83A72E77635F00B9F6B3 /* NoteWidgetExtension */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		17559A062E34197D0017DAE6 /* NoteApp */ = {
@@ -43,6 +84,14 @@
 		17559A202E34197F0017DAE6 /* NoteAppUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = NoteAppUITests;
+			sourceTree = "<group>";
+		};
+		177F83AE2E77635F00B9F6B3 /* NoteWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				177F83BF2E77636100B9F6B3 /* Exceptions for "NoteWidget" folder in "NoteWidgetExtension" target */,
+			);
+			path = NoteWidget;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -69,15 +118,27 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		177F83A52E77635F00B9F6B3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				177F83AD2E77635F00B9F6B3 /* SwiftUI.framework in Frameworks */,
+				177F83AB2E77635F00B9F6B3 /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		175599FB2E34197D0017DAE6 = {
 			isa = PBXGroup;
 			children = (
+				177F83C62E77659B00B9F6B3 /* NoteWidgetExtension.entitlements */,
 				17559A062E34197D0017DAE6 /* NoteApp */,
 				17559A162E34197F0017DAE6 /* NoteAppTests */,
 				17559A202E34197F0017DAE6 /* NoteAppUITests */,
+				177F83AE2E77635F00B9F6B3 /* NoteWidget */,
+				177F83A92E77635F00B9F6B3 /* Frameworks */,
 				17559A052E34197D0017DAE6 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -88,8 +149,18 @@
 				17559A042E34197D0017DAE6 /* NoteApp.app */,
 				17559A132E34197F0017DAE6 /* NoteAppTests.xctest */,
 				17559A1D2E34197F0017DAE6 /* NoteAppUITests.xctest */,
+				177F83A82E77635F00B9F6B3 /* NoteWidgetExtension.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		177F83A92E77635F00B9F6B3 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				177F83AA2E77635F00B9F6B3 /* WidgetKit.framework */,
+				177F83AC2E77635F00B9F6B3 /* SwiftUI.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -102,10 +173,12 @@
 				17559A002E34197D0017DAE6 /* Sources */,
 				17559A012E34197D0017DAE6 /* Frameworks */,
 				17559A022E34197D0017DAE6 /* Resources */,
+				177F83C32E77636100B9F6B3 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				177F83BD2E77636100B9F6B3 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				17559A062E34197D0017DAE6 /* NoteApp */,
@@ -163,6 +236,28 @@
 			productReference = 17559A1D2E34197F0017DAE6 /* NoteAppUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		177F83A72E77635F00B9F6B3 /* NoteWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 177F83C02E77636100B9F6B3 /* Build configuration list for PBXNativeTarget "NoteWidgetExtension" */;
+			buildPhases = (
+				177F83A42E77635F00B9F6B3 /* Sources */,
+				177F83A52E77635F00B9F6B3 /* Frameworks */,
+				177F83A62E77635F00B9F6B3 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				177F83AE2E77635F00B9F6B3 /* NoteWidget */,
+			);
+			name = NoteWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = NoteWidgetExtension;
+			productReference = 177F83A82E77635F00B9F6B3 /* NoteWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -184,6 +279,9 @@
 						CreatedOnToolsVersion = 16.4;
 						TestTargetID = 17559A032E34197D0017DAE6;
 					};
+					177F83A72E77635F00B9F6B3 = {
+						CreatedOnToolsVersion = 16.4;
+					};
 				};
 			};
 			buildConfigurationList = 175599FF2E34197D0017DAE6 /* Build configuration list for PBXProject "NoteApp" */;
@@ -203,6 +301,7 @@
 				17559A032E34197D0017DAE6 /* NoteApp */,
 				17559A122E34197F0017DAE6 /* NoteAppTests */,
 				17559A1C2E34197F0017DAE6 /* NoteAppUITests */,
+				177F83A72E77635F00B9F6B3 /* NoteWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -223,6 +322,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		17559A1B2E34197F0017DAE6 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		177F83A62E77635F00B9F6B3 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -253,6 +359,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		177F83A42E77635F00B9F6B3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -265,6 +378,11 @@
 			isa = PBXTargetDependency;
 			target = 17559A032E34197D0017DAE6 /* NoteApp */;
 			targetProxy = 17559A1E2E34197F0017DAE6 /* PBXContainerItemProxy */;
+		};
+		177F83BD2E77636100B9F6B3 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 177F83A72E77635F00B9F6B3 /* NoteWidgetExtension */;
+			targetProxy = 177F83BC2E77636100B9F6B3 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -393,8 +511,10 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = NoteApp/NoteApp.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = ZH326PS3D9;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -420,8 +540,10 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = NoteApp/NoteApp.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = ZH326PS3D9;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -510,6 +632,62 @@
 			};
 			name = Release;
 		};
+		177F83C12E77636100B9F6B3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = NoteWidgetExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = ZH326PS3D9;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = NoteWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = NoteWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kevinvarghese.NoteApp.NoteWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		177F83C22E77636100B9F6B3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = NoteWidgetExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = ZH326PS3D9;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = NoteWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = NoteWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kevinvarghese.NoteApp.NoteWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -545,6 +723,15 @@
 			buildConfigurations = (
 				17559A2E2E34197F0017DAE6 /* Debug */,
 				17559A2F2E34197F0017DAE6 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		177F83C02E77636100B9F6B3 /* Build configuration list for PBXNativeTarget "NoteWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				177F83C12E77636100B9F6B3 /* Debug */,
+				177F83C22E77636100B9F6B3 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

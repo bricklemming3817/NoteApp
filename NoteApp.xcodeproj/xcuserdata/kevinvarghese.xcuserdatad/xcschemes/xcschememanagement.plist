@@ -6,8 +6,40 @@
 	<dict>
 		<key>NoteApp.xcscheme_^#shared#^_</key>
 		<dict>
+			<key>isShown</key>
+			<true/>
 			<key>orderHint</key>
 			<integer>0</integer>
+		</dict>
+		<key>NoteWidgetExtension.xcscheme</key>
+		<dict>
+			<key>isShown</key>
+			<false/>
+			<key>orderHint</key>
+			<integer>1</integer>
+		</dict>
+	</dict>
+	<key>SuppressBuildableAutocreation</key>
+	<dict>
+		<key>17559A032E34197D0017DAE6</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
+		<key>17559A122E34197F0017DAE6</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
+		<key>17559A1C2E34197F0017DAE6</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
+		<key>177F83A72E77635F00B9F6B3</key>
+		<dict>
+			<key>primary</key>
+			<true/>
 		</dict>
 	</dict>
 </dict>

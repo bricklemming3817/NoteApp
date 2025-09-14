@@ -40,16 +40,30 @@ struct NoteEditorView: View {
             }
             .padding(.horizontal, 16)
             .ignoresSafeArea(.keyboard, edges: .bottom)
-            .navigationTitle(noteToEdit == nil ? "New Note" : "Edit Note")
+            .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                        .padding(.leading, 8)
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark")
+                            .symbolRenderingMode(.monochrome)
+                            .foregroundStyle(.secondary)
+                            .font(.system(size: 18, weight: .regular))
+                            .accessibilityLabel("Cancel")
+                    }
+                    .tint(.secondary)
+                    .padding(.leading, 8)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { saveNote() }
-                        .padding(.trailing, 8)
+                    Button(action: { saveNote() }) {
+                        Image(systemName: "checkmark")
+                            .symbolRenderingMode(.monochrome)
+                            .foregroundStyle(.secondary)
+                            .font(.system(size: 18, weight: .regular))
+                            .accessibilityLabel("Save")
+                    }
+                    .tint(.secondary)
+                    .padding(.trailing, 8)
                 }
             }
         }
@@ -62,11 +76,17 @@ struct NoteEditorView: View {
                 modelContext.delete(existing)
             } else {
                 existing.content   = trimmed
-                existing.createdAt = Date()
+                existing.updatedAt = Date()
+                // If this note is pinned for the widget, update the pinned content too.
+                let id = String(Int(existing.createdAt.timeIntervalSince1970 * 1000))
+                WidgetShared.updatePinnedIfPresent(id: id, content: trimmed, updatedAt: existing.updatedAt)
             }
         } else if !trimmed.isEmpty {
             let newNote = Note(content: trimmed, createdAt: Date())
             modelContext.insert(newNote)
+            // Add to selectable notes for the widget
+            let id = String(Int(newNote.createdAt.timeIntervalSince1970 * 1000))
+            WidgetShared.upsertNote(id: id, content: trimmed)
         }
         dismiss()
     }

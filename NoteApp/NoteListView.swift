@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import WidgetKit
 
 // MARK: – String helpers
 extension String {
@@ -15,7 +16,7 @@ extension String {
 
         while let r = lowerSelf.range(of: lowerSearch, range: start..<lowerSelf.endIndex) {
             if let attrR = Range(NSRange(r, in: self), in: attributed) {
-                attributed[attrR].backgroundColor = .yellow
+                attributed[attrR].backgroundColor = .yellow.opacity(0.25)
             }
             start = r.upperBound
         }
@@ -67,20 +68,30 @@ struct NoteListView: View {
 
     // search text
     @State private var searchText = ""
+    @FocusState private var searchFocused: Bool
 
     // HUD state
     @State private var foldersVisible   = false
     @State private var isArchiveExpanded = false
     @State private var isTrashExpanded   = false
+    @State private var pinBump: Int = 0
+    private let folderRowHeight: CGFloat = 64
 
     // filtered groups
     private var activeNotes: [Note] {
-        notes
+        _ = pinBump // depend on pin changes for re-sorting
+        let filtered = notes
             .filter { !$0.isArchived && $0.deletedAt == nil }
             .filter {
                 searchText.isEmpty ||
                 $0.content.localizedCaseInsensitiveContains(searchText)
             }
+        return filtered.sorted { a, b in
+            let ap = isPinned(a)
+            let bp = isPinned(b)
+            if ap != bp { return ap && !bp }
+            return a.createdAt > b.createdAt
+        }
     }
 
     private var archivedNotes: [Note] {
@@ -97,7 +108,12 @@ struct NoteListView: View {
         NavigationStack {
             VStack(spacing: 0) {
 
-                // HUD slides from top
+                // Custom minimal search bar
+                searchBar
+                    .padding(.horizontal)
+                    .padding(.bottom, 8)
+
+                // HUD slides below search bar
                 if foldersVisible {
                     folderHud
                         .padding(.horizontal)
@@ -109,11 +125,11 @@ struct NoteListView: View {
                 List {
                     Section(
                         header:
-                            HStack {
+                            HStack(spacing: 8) {
                                 Text("Notes")
                                     .textCase(nil)
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundColor(.primary)
                                 Spacer()
                             }
                             .background(Color(.systemBackground))
@@ -131,9 +147,10 @@ struct NoteListView: View {
                         } else {
                             ForEach(activeNotes) { note in
                                 activeNoteRow(note)
+                                    .listRowSeparator(.hidden)
+                                    .listRowBackground(Color.clear)
                                     .listRowInsets(
-                                        EdgeInsets(top: 0, leading: 16,
-                                                   bottom: 0, trailing: 16)
+                                        EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16)
                                     )
                             }
                         }
@@ -148,13 +165,7 @@ struct NoteListView: View {
                 )
             }
 
-            // ───── Pinned search bar ─────
-            .searchable(
-                text: $searchText,
-                placement: .navigationBarDrawer(displayMode: .always)
-            )
             .navigationBarTitleDisplayMode(.inline)
-            // ─────────────────────────────
 
             .sheet(isPresented: $showingEditor) {
                 NoteEditorView(note: selectedNote)
@@ -171,10 +182,16 @@ struct NoteListView: View {
                             showingEditor = true
                         } label: {
                             Image(systemName: "square.and.pencil")
+                                .symbolRenderingMode(.monochrome)
+                                .foregroundStyle(.black)
                         }
                     }
                     .frame(maxWidth: .infinity)
                 }
+            }
+            .onAppear {
+                purgeOldTrash()
+                syncWidgetNotesMap()
             }
         }
     }
@@ -199,20 +216,20 @@ struct NoteListView: View {
             folderCard(
                 title:      "Archive",
                 icon:       "archivebox.fill",
-                countText:  "(\(archivedNotes.count))",
+                count:      archivedNotes.count,
                 isExpanded: $isArchiveExpanded,
                 notes:      archivedNotes,
-                row:        archivedFlatRow(_:),
+                row:        archivedFolderRow(_:),
                 onToggle:   { if isArchiveExpanded { isTrashExpanded = false } }
             )
 
             folderCard(
                 title:      "Trash",
                 icon:       "trash.fill",
-                countText:  "",
+                count:      nil,
                 isExpanded: $isTrashExpanded,
                 notes:      deletedNotes,
-                row:        deletedFlatRow(_:),
+                row:        deletedFolderRow(_:),
                 onToggle:   { if isTrashExpanded { isArchiveExpanded = false } }
             )
         }
@@ -222,7 +239,7 @@ struct NoteListView: View {
     private func folderCard<Row: View>(
         title: String,
         icon: String,
-        countText: String,
+        count: Int?,
         isExpanded: Binding<Bool>,
         notes: [Note],
         @ViewBuilder row: @escaping (Note) -> Row,
@@ -237,48 +254,65 @@ struct NoteListView: View {
                     onToggle()
                 }
             } label: {
-                HStack(spacing: 8) {
+                HStack(spacing: 10) {
                     Image(systemName: icon)
                         .font(.subheadline)
-                        .foregroundColor(.primary)
-                    Text("\(title) \(countText)")
-                        .font(.subheadline)
-                        .foregroundColor(.primary)
+                        .foregroundStyle(.primary)
+                    Text(title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                    if let count {
+                        Text("\(count)")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(Color.secondary.opacity(0.15)))
+                    }
                     Spacer()
                     Image(systemName: "chevron.right")
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .foregroundStyle(.secondary)
                         .rotationEffect(.degrees(isExpanded.wrappedValue ? 90 : 0))
                 }
                 .padding(.vertical, 12)
-                .padding(.horizontal, 8)
+                .padding(.horizontal, 12)
             }
+            .buttonStyle(.plain)
+            .tint(.black)
 
-            // rows
+            // rows (use List to preserve swipe actions)
             if isExpanded.wrappedValue && !notes.isEmpty {
                 List(notes) { note in
                     row(note)
                         .listRowInsets(
-                            EdgeInsets(top: 0, leading: 32,
-                                       bottom: 0, trailing: 16)
+                            EdgeInsets(top: 0, leading: 32, bottom: 0, trailing: 16)
                         )
                         .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
                 }
                 .listStyle(.plain)
                 .scrollDisabled(true)
                 .scrollContentBackground(.hidden)
-                .frame(height: CGFloat(notes.count) * 64) // ≈ row height
+                .frame(height: CGFloat(notes.count) * folderRowHeight)
                 .transition(.opacity)
             }
         }
-        .background(Color(.secondarySystemBackground))
-        .cornerRadius(10)
-        .shadow(color: .black.opacity(0.05),
-                radius: 1, x: 0, y: 1)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color(.secondarySystemBackground))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color.secondary.opacity(0.15), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.04), radius: 2, x: 0, y: 1)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     // MARK: rows inside Archive / Trash
-    private func archivedFlatRow(_ note: Note) -> some View {
+    // Compact archived row used inside the hidden folders HUD (no card background)
+    private func archivedFolderRow(_ note: Note) -> some View {
         Button {
             selectedNote = note
             showingEditor = true
@@ -286,10 +320,17 @@ struct NoteListView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(note.content)
                     .lineLimit(1)
-                Text(note.createdAt,
-                     format: .dateTime.month().day().year().hour().minute())
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                HStack(spacing: 4) {
+                    Text(note.createdAt,
+                         format: .dateTime.month().day().year().hour().minute())
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    if isPinned(note) {
+                        Image(systemName: "pin.fill")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
             .padding(.vertical, 10)
         }
@@ -301,12 +342,31 @@ struct NoteListView: View {
                 Label("Unarchive", systemImage: "arrow.uturn.backward.circle.fill")
             }
             .tint(.green)
+            if isPinned(note) {
+                Button {
+                    togglePinned(note, makePinned: false)
+                } label: {
+                    Label("Unpin", systemImage: "pin.slash.fill")
+                }
+                .tint(.orange)
+            } else {
+                Button {
+                    togglePinned(note, makePinned: true)
+                    pinToWidget(note)
+                } label: {
+                    Label("Pin", systemImage: "pin.fill")
+                }
+                .tint(.orange)
+            }
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button(role: .destructive) {
                 withAnimation {
                     note.deletedAt  = Date()
                     note.isArchived = false
+                    let id = String(Int(note.createdAt.timeIntervalSince1970 * 1000))
+                    PinnedNotesStore.remove(id: id)
+                    WidgetShared.removeNote(id: id)
                 }
             } label: {
                 Label("Delete", systemImage: "trash.fill")
@@ -314,14 +374,14 @@ struct NoteListView: View {
         }
     }
 
-    private func deletedFlatRow(_ note: Note) -> some View {
+    // Compact trash row used inside the hidden folders HUD (no card background)
+    private func deletedFolderRow(_ note: Note) -> some View {
         Button {
             selectedNote = note
             showingEditor = true
         } label: {
             VStack(alignment: .leading, spacing: 4) {
                 Text(note.content)
-                    .foregroundColor(.primary)
                     .lineLimit(1)
                 if let deleted = note.deletedAt {
                     Text("Deleted: \(deleted.formatted(.dateTime.month().day()))")
@@ -334,7 +394,11 @@ struct NoteListView: View {
         .contentShape(Rectangle())
         .swipeActions(edge: .leading, allowsFullSwipe: true) {
             Button {
-                withAnimation { note.deletedAt = nil }
+                withAnimation {
+                    note.deletedAt = nil
+                    let id = String(Int(note.createdAt.timeIntervalSince1970 * 1000))
+                    WidgetShared.upsertNote(id: id, content: note.content)
+                }
             } label: {
                 Label("Restore", systemImage: "arrow.uturn.backward.circle.fill")
             }
@@ -342,7 +406,134 @@ struct NoteListView: View {
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button(role: .destructive) {
-                withAnimation { modelContext.delete(note) }
+                withAnimation {
+                    modelContext.delete(note)
+                    let id = String(Int(note.createdAt.timeIntervalSince1970 * 1000))
+                    WidgetShared.removeNote(id: id)
+                }
+            } label: {
+                Label("Delete Now", systemImage: "xmark.bin.fill")
+            }
+        }
+    }
+    private func archivedFlatRow(_ note: Note) -> some View {
+        Button {
+            selectedNote = note
+            showingEditor = true
+        } label: {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(note.content)
+                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    Text(note.createdAt,
+                         format: .dateTime.month().day().year().hour().minute())
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    if isPinned(note) {
+                        Image(systemName: "pin.fill")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color(.secondarySystemBackground))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(Color.secondary.opacity(0.15), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.04), radius: 2, x: 0, y: 1)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+        .contentShape(Rectangle())
+        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+            Button {
+                withAnimation { note.isArchived = false }
+            } label: {
+                Label("Unarchive", systemImage: "arrow.uturn.backward.circle.fill")
+            }
+            .tint(.green)
+            if isPinned(note) {
+                Button {
+                    togglePinned(note, makePinned: false)
+                } label: {
+                    Label("Unpin", systemImage: "pin.slash.fill")
+                }
+                .tint(.orange)
+            } else {
+                Button {
+                    togglePinned(note, makePinned: true)
+                    pinToWidget(note)
+                } label: {
+                    Label("Pin", systemImage: "pin.fill")
+                }
+                .tint(.orange)
+            }
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            Button(role: .destructive) {
+                withAnimation {
+                    note.deletedAt  = Date()
+                    note.isArchived = false
+                    let id = String(Int(note.createdAt.timeIntervalSince1970 * 1000))
+                    PinnedNotesStore.remove(id: id)
+                    WidgetShared.removeNote(id: id)
+                }
+            } label: {
+                Label("Delete", systemImage: "trash.fill")
+            }
+        }
+    }
+
+    private func deletedFlatRow(_ note: Note) -> some View {
+        Button {
+            selectedNote = note
+            showingEditor = true
+        } label: {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(note.content)
+                    .foregroundColor(.primary)
+                    .lineLimit(1)
+                if let deleted = note.deletedAt {
+                    Text("Deleted: \(deleted.formatted(.dateTime.month().day()))")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color(.secondarySystemBackground))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(Color.secondary.opacity(0.15), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.04), radius: 2, x: 0, y: 1)
+        }
+        .contentShape(Rectangle())
+        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+            Button {
+                withAnimation {
+                    note.deletedAt = nil
+                    let id = String(Int(note.createdAt.timeIntervalSince1970 * 1000))
+                    WidgetShared.upsertNote(id: id, content: note.content)
+                }
+            } label: {
+                Label("Restore", systemImage: "arrow.uturn.backward.circle.fill")
+            }
+            .tint(.orange)
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            Button(role: .destructive) {
+                withAnimation {
+                    modelContext.delete(note)
+                    let id = String(Int(note.createdAt.timeIntervalSince1970 * 1000))
+                    WidgetShared.removeNote(id: id)
+                }
             } label: {
                 Label("Delete Now", systemImage: "xmark.bin.fill")
             }
@@ -355,19 +546,35 @@ struct NoteListView: View {
             selectedNote = note
             showingEditor = true
         } label: {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text(
                     note.content
                         .snippet(containing: searchText, maxLength: 200)
                         .highlightedAttributedString(with: searchText)
                 )
                 .foregroundColor(.primary)
-                Text(note.createdAt,
-                     format: .dateTime.month().day().year().hour().minute())
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                HStack(spacing: 6) {
+                    Text(note.createdAt,
+                         format: .dateTime.month().day().year().hour().minute())
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    if isPinned(note) {
+                        Image(systemName: "pin.fill")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
-            .padding(.vertical, 8)
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color(.secondarySystemBackground))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(Color.secondary.opacity(0.15), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.04), radius: 2, x: 0, y: 1)
         }
         .contentShape(Rectangle())
         .swipeActions(edge: .leading, allowsFullSwipe: true) {
@@ -377,13 +584,124 @@ struct NoteListView: View {
                 Label("Archive", systemImage: "archivebox.fill")
             }
             .tint(.blue)
+            if isPinned(note) {
+                Button {
+                    togglePinned(note, makePinned: false)
+                } label: {
+                    Label("Unpin", systemImage: "pin.slash.fill")
+                }
+                .tint(.orange)
+            } else {
+                Button {
+                    togglePinned(note, makePinned: true)
+                } label: {
+                    Label("Pin", systemImage: "pin.fill")
+                }
+                .tint(.orange)
+            }
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button(role: .destructive) {
-                withAnimation { note.deletedAt = Date() }
+                withAnimation {
+                    note.deletedAt = Date()
+                    let id = String(Int(note.createdAt.timeIntervalSince1970 * 1000))
+                    PinnedNotesStore.remove(id: id)
+                    WidgetShared.removeNote(id: id)
+                }
             } label: {
                 Label("Delete", systemImage: "trash.fill")
             }
         }
+    }
+}
+
+// MARK: – Widget helpers
+extension NoteListView {
+    private func pinToWidget(_ note: Note) {
+        // Use a stable id derived from createdAt (milliseconds since 1970)
+        let id = String(Int(note.createdAt.timeIntervalSince1970 * 1000))
+        WidgetShared.savePinned(id: id, content: note.content, updatedAt: note.updatedAt)
+    }
+
+    private func togglePinned(_ note: Note, makePinned: Bool) {
+        let id = String(Int(note.createdAt.timeIntervalSince1970 * 1000))
+        PinnedNotesStore.setPinned(makePinned, id: id)
+        if makePinned {
+            // Also ensure widget selection list has the latest content
+            WidgetShared.savePinned(id: id, content: note.content, updatedAt: note.updatedAt)
+        }
+        pinBump &+= 1
+    }
+
+    private func isPinned(_ note: Note) -> Bool {
+        let id = String(Int(note.createdAt.timeIntervalSince1970 * 1000))
+        return PinnedNotesStore.isPinned(id: id)
+    }
+}
+
+// MARK: – Purge helpers
+extension NoteListView {
+    /// Permanently removes notes in Trash older than 30 days.
+    private func purgeOldTrash() {
+        let cutoff = Calendar.current.date(byAdding: .day, value: -30, to: Date())!
+        var didDelete = false
+        for note in notes {
+            if let deleted = note.deletedAt, deleted < cutoff {
+                modelContext.delete(note)
+                let id = String(Int(note.createdAt.timeIntervalSince1970 * 1000))
+                PinnedNotesStore.remove(id: id)
+                WidgetShared.removeNote(id: id)
+                didDelete = true
+            }
+        }
+        if didDelete {
+            try? modelContext.save()
+        }
+    }
+
+    /// Keeps the App Group notes map in sync with current (non-deleted) notes
+    private func syncWidgetNotesMap() {
+        let selectable = notes.filter { $0.deletedAt == nil }
+        let items: [(id: String, content: String)] = selectable.map {
+            (String(Int($0.createdAt.timeIntervalSince1970 * 1000)), $0.content)
+        }
+        WidgetShared.setAllNotes(items)
+    }
+}
+
+// MARK: – Custom Search Bar
+extension NoteListView {
+    private var searchBar: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(.secondary)
+            TextField("", text: $searchText)
+                .focused($searchFocused)
+                .textInputAutocapitalization(.never)
+                .disableAutocorrection(false)
+            if searchFocused || !searchText.isEmpty {
+                Button(action: {
+                    searchText = ""
+                    searchFocused = false
+                }) {
+                    Image(systemName: "xmark")
+                        .symbolRenderingMode(.monochrome)
+                        .foregroundStyle(.secondary)
+                        .font(.system(size: 18, weight: .regular))
+                }
+                .tint(.secondary)
+            }
+        }
+        .padding(.vertical, 6)
+        .padding(.horizontal, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color(.secondarySystemBackground))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color.secondary.opacity(0.15), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.04), radius: 2, x: 0, y: 1)
     }
 }
