@@ -175,7 +175,6 @@ struct NoteListView: View {
                     HStack {
                         Text("NoteApp")
                             .font(.title)
-                            .bold()
                         Spacer()
                         Button {
                             selectedNote = nil
@@ -566,6 +565,7 @@ struct NoteListView: View {
                 }
             }
             .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(Color(.secondarySystemBackground))
