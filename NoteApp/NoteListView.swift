@@ -120,7 +120,7 @@ struct NoteListView: View {
                     } label: {
                         Image(systemName: "square.and.pencil")
                             .symbolRenderingMode(.monochrome)
-                            .foregroundStyle(.black)
+                            .foregroundStyle(.primary)
                             .font(.system(size: 22))
                             .frame(width: 32, height: 32)
                     }
@@ -144,38 +144,33 @@ struct NoteListView: View {
                         .transition(.move(edge: .top).combined(with: .opacity))
                 }
 
+                Text("Notes")
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal)
+                    .padding(.vertical, 4)
+                    .foregroundStyle(.primary)
+
                 // main list
                 List {
-                    Section(
-                        header:
-                            HStack(spacing: 8) {
-                                Text("Notes")
-                                    .textCase(nil)
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundColor(.primary)
-                                Spacer()
-                            }
-                            .background(Color(.systemBackground))
-                    ) {
-                        if activeNotes.isEmpty {
-                            Text(
-                                searchText.isEmpty
-                                ? "No notes yet. Tap + to add one."
-                                : "No results for ‘\(searchText)’"
-                            )
-                            .foregroundColor(.gray)
-                            .listRowInsets(
-                                EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16)
-                            )
-                        } else {
-                            ForEach(activeNotes) { note in
-                                activeNoteRow(note)
-                                    .listRowSeparator(.hidden)
-                                    .listRowBackground(Color.clear)
-                                    .listRowInsets(
-                                        EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16)
-                                    )
-                            }
+                    if activeNotes.isEmpty {
+                        Text(
+                            searchText.isEmpty
+                            ? "No notes yet. Tap + to add one."
+                            : "No results for ‘\(searchText)’"
+                        )
+                        .foregroundColor(.gray)
+                        .listRowInsets(
+                            EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16)
+                        )
+                    } else {
+                        ForEach(activeNotes) { note in
+                            activeNoteRow(note)
+                                .listRowSeparator(.hidden)
+                                .listRowBackground(Color.clear)
+                                .listRowInsets(
+                                    EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16)
+                                )
                         }
                     }
                 }
@@ -630,7 +625,6 @@ struct NoteListView: View {
         }
     }
 }
-
 // MARK: – Widget helpers
 extension NoteListView {
     private func noteID(for note: Note) -> String {
@@ -737,17 +731,13 @@ extension NoteListView {
 // MARK: – Deep link handling
 extension NoteListView {
     private func handleDeepLink(_ url: URL) {
-        guard url.scheme == "noteapp" else { return }
-
-        guard url.host == "note" else { return }
+        guard url.scheme == "noteapp", url.host == "note" else { return }
 
         let pathComponents = url.pathComponents.filter { $0 != "/" }
         var candidateID = pathComponents.first
         if candidateID == nil {
-            candidateID = URLComponents(url: url, resolvingAgainstBaseURL: false)?
-                .queryItems?
-                .first(where: { $0.name == "id" })?
-                .value
+            candidateID = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?
+                .first(where: { $0.name == "id" })?.value
         }
 
         guard let targetID = candidateID else { return }
