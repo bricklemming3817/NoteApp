@@ -10,6 +10,8 @@ import SwiftData
 
 @main
 struct NoteAppApp: App {
+    @AppStorage(AppTheme.storageKey) private var storedTheme = AppTheme.light.rawValue
+
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Note.self,
@@ -27,6 +29,7 @@ struct NoteAppApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .preferredColorScheme(AppTheme.load(from: storedTheme).colorScheme)
         }
         .modelContainer(sharedModelContainer)
     }

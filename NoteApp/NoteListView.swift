@@ -60,7 +60,9 @@ extension String {
 struct NoteListView: View {
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.colorScheme) private var colorScheme
     @Query(sort: \Note.createdAt, order: .reverse) private var notes: [Note]
+    @AppStorage(AppTheme.storageKey) private var storedTheme = AppTheme.light.rawValue
 
     // navigation / edit
     @State private var showingEditor = false
@@ -75,12 +77,13 @@ struct NoteListView: View {
     @State private var foldersVisible   = false
     @State private var isArchiveExpanded = false
     @State private var isTrashExpanded   = false
-    @State private var pinBump: Int = 0
     private let folderRowHeight: CGFloat = 64
+    private var pinReorderAnimation: Animation {
+        .spring(response: 0.45, dampingFraction: 0.88, blendDuration: 0.2)
+    }
 
     // filtered groups
     private var activeNotes: [Note] {
-        _ = pinBump // depend on pin changes for re-sorting
         let filtered = notes
             .filter { !$0.isArchived && $0.deletedAt == nil }
             .filter {
@@ -88,9 +91,7 @@ struct NoteListView: View {
                 $0.content.localizedCaseInsensitiveContains(searchText)
             }
         return filtered.sorted { a, b in
-            let ap = isPinned(a)
-            let bp = isPinned(b)
-            if ap != bp { return ap && !bp }
+            if a.isPinned != b.isPinned { return a.isPinned && !b.isPinned }
             return a.createdAt > b.createdAt
         }
     }
@@ -104,6 +105,10 @@ struct NoteListView: View {
         return notes.filter { ($0.deletedAt ?? .distantPast) > cutoff }
     }
 
+    private var currentTheme: AppTheme {
+        AppTheme.load(from: storedTheme)
+    }
+
     // MARK: body
     var body: some View {
         NavigationStack {
@@ -111,8 +116,14 @@ struct NoteListView: View {
 
                 // Custom title row with compose button
                 HStack {
-                    Text("NoteApp")
-                        .font(.title)
+                    Button(action: toggleThemePreference) {
+                        Text("NoteApp")
+                            .font(.title)
+                            .foregroundStyle(.primary)
+                    }
+                    .buttonStyle(.plain)
+                    .contentShape(Rectangle())
+                    .accessibilityLabel("Toggle appearance")
                     Spacer()
                     Button {
                         selectedNote = nil
@@ -154,15 +165,23 @@ struct NoteListView: View {
                 // main list
                 List {
                     if activeNotes.isEmpty {
-                        Text(
-                            searchText.isEmpty
-                            ? "No notes yet. Tap + to add one."
-                            : "No results for ‘\(searchText)’"
-                        )
-                        .foregroundColor(.gray)
-                        .listRowInsets(
-                            EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16)
-                        )
+                        if searchText.isEmpty {
+                            (
+                                Text("No notes yet. Tap ")
+                                + Text(Image(systemName: "square.and.pencil"))
+                                + Text(" to add one.")
+                            )
+                            .foregroundColor(.gray)
+                            .listRowInsets(
+                                EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16)
+                            )
+                        } else {
+                            Text("No results for ‘\(searchText)’")
+                                .foregroundColor(.gray)
+                                .listRowInsets(
+                                    EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16)
+                                )
+                        }
                     } else {
                         ForEach(activeNotes) { note in
                             activeNoteRow(note)
@@ -188,15 +207,16 @@ struct NoteListView: View {
 
             .sheet(isPresented: $showingEditor) {
                 NoteEditorView(note: selectedNote)
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
             }
             .onOpenURL { url in
                 handleDeepLink(url)
             }
-            .onChange(of: notes) { _ in
-                if let pending = pendingDeepLinkNoteID {
-                    if openNote(withID: pending) {
-                        pendingDeepLinkNoteID = nil
-                    }
+            .onChange(of: notes, initial: false) { _, newNotes in
+                guard let pending = pendingDeepLinkNoteID else { return }
+                if openNote(withID: pending, in: newNotes) {
+                    pendingDeepLinkNoteID = nil
                 }
             }
             .onAppear {
@@ -204,6 +224,10 @@ struct NoteListView: View {
                 syncWidgetNotesMap()
             }
         }
+    }
+
+    private func toggleThemePreference() {
+        storedTheme = currentTheme.toggled().rawValue
     }
 
     // MARK: swipe to show / hide HUD
@@ -335,7 +359,7 @@ struct NoteListView: View {
                          format: .dateTime.month().day().year().hour().minute())
                         .font(.caption)
                         .foregroundColor(.secondary)
-                    if isPinned(note) {
+                    if note.isPinned {
                         Image(systemName: "pin.fill")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
@@ -352,7 +376,7 @@ struct NoteListView: View {
                 Label("Unarchive", systemImage: "arrow.uturn.backward.circle.fill")
             }
             .tint(.green)
-            if isPinned(note) {
+            if note.isPinned {
                 Button {
                     togglePinned(note, makePinned: false)
                 } label: {
@@ -362,7 +386,6 @@ struct NoteListView: View {
             } else {
                 Button {
                     togglePinned(note, makePinned: true)
-                    pinToWidget(note)
                 } label: {
                     Label("Pin", systemImage: "pin.fill")
                 }
@@ -374,9 +397,10 @@ struct NoteListView: View {
                 withAnimation {
                     note.deletedAt  = Date()
                     note.isArchived = false
-                    let id = noteID(for: note)
-                    PinnedNotesStore.remove(id: id)
-                    WidgetShared.removeNote(id: id)
+                    if note.isPinned {
+                        note.isPinned = false
+                    }
+                    WidgetShared.removeNote(id: noteID(for: note))
                 }
             } label: {
                 Label("Delete", systemImage: "trash.fill")
@@ -406,8 +430,7 @@ struct NoteListView: View {
             Button {
                 withAnimation {
                     note.deletedAt = nil
-                    let id = noteID(for: note)
-                    WidgetShared.upsertNote(id: id, content: note.content)
+                    WidgetShared.upsertNote(id: noteID(for: note), content: note.content)
                 }
             } label: {
                 Label("Restore", systemImage: "arrow.uturn.backward.circle.fill")
@@ -417,9 +440,11 @@ struct NoteListView: View {
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button(role: .destructive) {
                 withAnimation {
+                    if note.isPinned {
+                        note.isPinned = false
+                    }
+                    WidgetShared.removeNote(id: noteID(for: note))
                     modelContext.delete(note)
-                    let id = noteID(for: note)
-                    WidgetShared.removeNote(id: id)
                 }
             } label: {
                 Label("Delete Now", systemImage: "xmark.bin.fill")
@@ -439,7 +464,7 @@ struct NoteListView: View {
                          format: .dateTime.month().day().year().hour().minute())
                         .font(.caption)
                         .foregroundColor(.secondary)
-                    if isPinned(note) {
+                    if note.isPinned {
                         Image(systemName: "pin.fill")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
@@ -466,7 +491,7 @@ struct NoteListView: View {
                 Label("Unarchive", systemImage: "arrow.uturn.backward.circle.fill")
             }
             .tint(.green)
-            if isPinned(note) {
+            if note.isPinned {
                 Button {
                     togglePinned(note, makePinned: false)
                 } label: {
@@ -476,7 +501,6 @@ struct NoteListView: View {
             } else {
                 Button {
                     togglePinned(note, makePinned: true)
-                    pinToWidget(note)
                 } label: {
                     Label("Pin", systemImage: "pin.fill")
                 }
@@ -488,9 +512,10 @@ struct NoteListView: View {
                 withAnimation {
                     note.deletedAt  = Date()
                     note.isArchived = false
-                    let id = noteID(for: note)
-                    PinnedNotesStore.remove(id: id)
-                    WidgetShared.removeNote(id: id)
+                    if note.isPinned {
+                        note.isPinned = false
+                    }
+                    WidgetShared.removeNote(id: noteID(for: note))
                 }
             } label: {
                 Label("Delete", systemImage: "trash.fill")
@@ -557,18 +582,15 @@ struct NoteListView: View {
             showingEditor = true
         } label: {
             VStack(alignment: .leading, spacing: 6) {
-                Text(
-                    note.content
-                        .snippet(containing: searchText, maxLength: 200)
-                        .highlightedAttributedString(with: searchText)
-                )
-                .foregroundColor(.primary)
+                let snippet = note.content.snippet(containing: searchText, maxLength: 200)
+                Text(snippet.highlightedAttributedString(with: searchText))
+                    .foregroundColor(.primary) // keeps your text color; background highlight still shows
                 HStack(spacing: 6) {
                     Text(note.createdAt,
                          format: .dateTime.month().day().year().hour().minute())
                         .font(.caption)
                         .foregroundColor(.secondary)
-                    if isPinned(note) {
+            if note.isPinned {
                         Image(systemName: "pin.fill")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
@@ -595,7 +617,7 @@ struct NoteListView: View {
                 Label("Archive", systemImage: "archivebox.fill")
             }
             .tint(.blue)
-            if isPinned(note) {
+            if note.isPinned {
                 Button {
                     togglePinned(note, makePinned: false)
                 } label: {
@@ -615,9 +637,10 @@ struct NoteListView: View {
             Button(role: .destructive) {
                 withAnimation {
                     note.deletedAt = Date()
-                    let id = noteID(for: note)
-                    PinnedNotesStore.remove(id: id)
-                    WidgetShared.removeNote(id: id)
+                    if note.isPinned {
+                        note.isPinned = false
+                    }
+                    WidgetShared.removeNote(id: noteID(for: note))
                 }
             } label: {
                 Label("Delete", systemImage: "trash.fill")
@@ -632,32 +655,28 @@ extension NoteListView {
     }
 
     @discardableResult
-    private func openNote(withID id: String) -> Bool {
-        guard let target = notes.first(where: { noteID(for: $0) == id }) else { return false }
+    private func openNote(withID id: String, in list: [Note]? = nil) -> Bool {
+        let source = list ?? notes
+        guard let target = source.first(where: { noteID(for: $0) == id }) else { return false }
         selectedNote = target
         showingEditor = true
         return true
     }
 
     private func pinToWidget(_ note: Note) {
-        // Use a stable id derived from createdAt (milliseconds since 1970)
-        let id = noteID(for: note)
-        WidgetShared.savePinned(id: id, content: note.content, updatedAt: note.updatedAt)
+        WidgetShared.savePinned(id: noteID(for: note), content: note.content, updatedAt: note.updatedAt)
     }
 
     private func togglePinned(_ note: Note, makePinned: Bool) {
-        let id = noteID(for: note)
-        PinnedNotesStore.setPinned(makePinned, id: id)
-        if makePinned {
-            // Also ensure widget selection list has the latest content
-            WidgetShared.savePinned(id: id, content: note.content, updatedAt: note.updatedAt)
+        withAnimation(pinReorderAnimation) {
+            note.isPinned = makePinned
         }
-        pinBump &+= 1
-    }
 
-    private func isPinned(_ note: Note) -> Bool {
-        let id = noteID(for: note)
-        return PinnedNotesStore.isPinned(id: id)
+        if makePinned {
+            pinToWidget(note)
+        }
+
+        try? modelContext.save()
     }
 }
 
@@ -669,10 +688,11 @@ extension NoteListView {
         var didDelete = false
         for note in notes {
             if let deleted = note.deletedAt, deleted < cutoff {
+                if note.isPinned {
+                    note.isPinned = false
+                }
+                WidgetShared.removeNote(id: noteID(for: note))
                 modelContext.delete(note)
-                let id = noteID(for: note)
-                PinnedNotesStore.remove(id: id)
-                WidgetShared.removeNote(id: id)
                 didDelete = true
             }
         }
@@ -701,6 +721,7 @@ extension NoteListView {
                 .focused($searchFocused)
                 .textInputAutocapitalization(.never)
                 .disableAutocorrection(false)
+                .tint(colorScheme == .dark ? .white : .accentColor)
             if searchFocused || !searchText.isEmpty {
                 Button(action: {
                     searchText = ""

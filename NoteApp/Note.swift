@@ -14,6 +14,7 @@ final class Note {
     var content: String
     var createdAt: Date
     var updatedAt: Date
+    var isPinned: Bool = false
     var isArchived: Bool = false
     var deletedAt: Date?
     

@@ -26,8 +26,9 @@ struct Provider: AppIntentTimelineProvider {
         if let note = configuration.note, let content = WidgetShared.content(for: note.id) {
             return NoteEntry(date: Date(), content: content, noteID: note.id)
         }
-        if let data = WidgetShared.read() { // legacy fallback
-            return NoteEntry(date: Date(), content: data.content, noteID: WidgetShared.selectedPinnedID())
+        if let selected = WidgetShared.selectedPinnedID(),
+           let content = WidgetShared.content(for: selected) {
+            return NoteEntry(date: Date(), content: content, noteID: selected)
         }
         return placeholder(in: context)
     }
@@ -38,9 +39,10 @@ struct Provider: AppIntentTimelineProvider {
         if let note = configuration.note, let c = WidgetShared.content(for: note.id) {
             content = c
             noteID = note.id
-        } else if let data = WidgetShared.read() {
-            content = data.content
-            noteID = WidgetShared.selectedPinnedID()
+        } else if let selected = WidgetShared.selectedPinnedID(),
+                  let stored = WidgetShared.content(for: selected) {
+            content = stored
+            noteID = selected
         } else {
             content = "Pin a note from the app"
             noteID = nil
@@ -60,30 +62,41 @@ struct NoteWidgetEntryView: View {
         let parts = split(entry.content)
         let titleText = normalize(parts.title)
         let bodyText  = parts.body.map(normalize)
-        VStack(alignment: .leading, spacing: dynamicSpacing) {
+        widgetBody(titleText: titleText, bodyText: bodyText)
+    }
+
+    @ViewBuilder
+    private func widgetBody(titleText: String, bodyText: String?) -> some View {
+        if #available(iOSApplicationExtension 17.0, *) {
+            content(titleText: titleText, bodyText: bodyText)
+                .containerBackground(widgetBackgroundColor, for: .widget)
+        } else {
+            content(titleText: titleText, bodyText: bodyText)
+                .background(widgetBackgroundColor)
+        }
+    }
+
+    private func content(titleText: String, bodyText: String?) -> some View {
+        let bodyLines = formattedBodyLines(from: bodyText)
+        return VStack(alignment: .leading, spacing: dynamicSpacing) {
             // Title (first line)
-            Text(titleText)
+            Text(MarkdownRenderer.render(titleText))
                 .font(titleFont)
                 .foregroundStyle(.primary)
-                // Show the first line fully (wrap as needed),
-                // and give it priority over the body text.
-                .lineLimit(nil)
                 .fixedSize(horizontal: false, vertical: true)
                 .layoutPriority(2)
                 .minimumScaleFactor(0.8)
                 .multilineTextAlignment(.leading)
 
-            // Body (rest)
-            if let body = bodyText, !body.isEmpty {
-                Text(body)
-                    .font(bodyFont)
-                    .foregroundStyle(.primary)
-                    .lineLimit(bodyLineLimit)
-                    .multilineTextAlignment(.leading)
-                    .lineSpacing(bodyLineSpacing)
-                    .minimumScaleFactor(0.9)
-                    .layoutPriority(0)
+            if !bodyLines.isEmpty {
+                VStack(alignment: .leading, spacing: bodyLineSpacing) {
+                    ForEach(Array(bodyLines.enumerated()), id: \.offset) { item in
+                        bodyLineView(item.element)
+                    }
+                }
+                .layoutPriority(1)
             }
+
             Spacer(minLength: 0)
         }
         .padding(dynamicPadding)
@@ -91,6 +104,30 @@ struct NoteWidgetEntryView: View {
         .transaction { transaction in
             transaction.animation = nil
         }
+    }
+
+    @ViewBuilder
+    private func bodyLineView(_ line: BodyLine) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            if let prefix = line.prefix {
+                Text(prefix)
+                    .font(prefixFont)
+                    .foregroundStyle(.secondary)
+                    .frame(minWidth: prefixMinWidth, alignment: .trailing)
+            }
+            Text(line.content)
+                .font(bodyFont)
+                .foregroundStyle(.primary)
+                .lineLimit(bodyLineLimit)
+                .multilineTextAlignment(.leading)
+                .minimumScaleFactor(0.9)
+        }
+        .padding(.leading, CGFloat(line.indentLevel) * indentStep)
+    }
+
+    private var widgetBackgroundColor: Color {
+        // Matches the asset catalog color configured for widget backgrounds.
+        Color("WidgetBackground")
     }
 
     // MARK: – Layout helpers
@@ -141,10 +178,37 @@ struct NoteWidgetEntryView: View {
 
     private var bodyLineSpacing: CGFloat {
         switch family {
-        case .systemSmall: return 1
-        case .systemMedium: return 1.5
-        case .systemLarge: return 2
-        default: return 1.5
+        case .systemSmall: return 2
+        case .systemMedium: return 3
+        case .systemLarge: return 4
+        default: return 2
+        }
+    }
+
+    private var prefixFont: Font {
+        switch family {
+        case .systemSmall: return .system(size: 12, weight: .semibold)
+        case .systemMedium: return .system(size: 13, weight: .semibold)
+        case .systemLarge: return .system(size: 15, weight: .semibold)
+        default: return .caption
+        }
+    }
+
+    private var prefixMinWidth: CGFloat {
+        switch family {
+        case .systemSmall: return 16
+        case .systemMedium: return 18
+        case .systemLarge: return 20
+        default: return 16
+        }
+    }
+
+    private var indentStep: CGFloat {
+        switch family {
+        case .systemSmall: return 6
+        case .systemMedium: return 8
+        case .systemLarge: return 10
+        default: return 6
         }
     }
 
@@ -158,11 +222,11 @@ struct NoteWidgetEntryView: View {
     }
 
     private func split(_ text: String) -> (title: String, body: String?) {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = text.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return ("Empty Note", nil) }
         if let idx = trimmed.firstIndex(of: "\n") {
-            let title = String(trimmed[..<idx]).trimmingCharacters(in: .whitespaces)
-            let body = String(trimmed[idx...].dropFirst()).trimmingCharacters(in: .whitespacesAndNewlines)
+            let title = String(trimmed[..<idx]).trimmingCharacters(in: CharacterSet.whitespaces)
+            let body = String(trimmed[idx...].dropFirst()).trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
             return (title.isEmpty ? "Untitled" : title, body)
         } else {
             return (trimmed, nil)
@@ -203,7 +267,7 @@ struct NoteWidgetEntryView: View {
     }
 
     private var contentDensity: CGFloat {
-        let trimmed = entry.content.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = MarkdownRenderer.plainText(from: entry.content).trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
         if trimmed.isEmpty { return 0 }
 
         let characters = trimmed.count
@@ -213,6 +277,76 @@ struct NoteWidgetEntryView: View {
         let lineComponent = min(CGFloat(max(lines - 2, 0)) / 6, 1)
 
         return min(1, charComponent * 0.6 + lineComponent * 0.4)
+    }
+}
+
+// MARK: – Body formatting helpers
+extension NoteWidgetEntryView {
+    private struct BodyLine {
+        let prefix: String?
+        let content: AttributedString
+        let indentLevel: Int
+    }
+
+    private func formattedBodyLines(from body: String?) -> [BodyLine] {
+        guard let body, !body.isEmpty else { return [] }
+        let rawLines = body.split(omittingEmptySubsequences: false, whereSeparator: { $0.isNewline })
+        var result: [BodyLine] = []
+
+        for raw in rawLines {
+            let line = String(raw)
+            if line.trimmingCharacters(in: CharacterSet.whitespaces).isEmpty { continue }
+            if let ordered = parseOrdered(line) {
+                result.append(ordered)
+            } else if let unordered = parseUnordered(line) {
+                result.append(unordered)
+            } else {
+                result.append(BodyLine(prefix: nil,
+                                       content: MarkdownRenderer.render(line.trimmingCharacters(in: CharacterSet.whitespaces)),
+                                               indentLevel: 0))
+            }
+        }
+        return result
+    }
+
+    private func parseOrdered(_ line: String) -> BodyLine? {
+        guard let regex = try? NSRegularExpression(pattern: "^([\\t ]*)(\\d+)\\.\\s+(.+)$", options: []) else { return nil }
+        let range = NSRange(line.startIndex..<line.endIndex, in: line)
+        guard let match = regex.firstMatch(in: line, options: [], range: range) else { return nil }
+        guard let indentRange = Range(match.range(at: 1), in: line),
+              let numberRange = Range(match.range(at: 2), in: line),
+              let contentRange = Range(match.range(at: 3), in: line) else { return nil }
+
+        let indentLevel = indentLevel(for: String(line[indentRange]))
+        let prefixNumber = String(line[numberRange])
+        let prefix = "\(prefixNumber)."
+        let content = String(line[contentRange]).trimmingCharacters(in: CharacterSet.whitespaces)
+        return BodyLine(prefix: prefix,
+                        content: MarkdownRenderer.render(content),
+                        indentLevel: indentLevel)
+    }
+
+    private func parseUnordered(_ line: String) -> BodyLine? {
+        guard let regex = try? NSRegularExpression(pattern: "^([\\t ]*)([-\\*+])\\s+(.+)$", options: []) else { return nil }
+        let range = NSRange(line.startIndex..<line.endIndex, in: line)
+        guard let match = regex.firstMatch(in: line, options: [], range: range) else { return nil }
+        guard let indentRange = Range(match.range(at: 1), in: line),
+              let contentRange = Range(match.range(at: 3), in: line) else { return nil }
+
+        let indentLevel = indentLevel(for: String(line[indentRange]))
+        let content = String(line[contentRange]).trimmingCharacters(in: CharacterSet.whitespaces)
+        return BodyLine(prefix: "•",
+                        content: MarkdownRenderer.render(content),
+                        indentLevel: indentLevel)
+    }
+
+    private func indentLevel(for indent: String) -> Int {
+        guard !indent.isEmpty else { return 0 }
+        let spaces = indent.reduce(0) { partial, character -> Int in
+            if character == "\t" { return partial + 4 }
+            return partial + 1
+        }
+        return max(0, spaces / 2)
     }
 }
 
