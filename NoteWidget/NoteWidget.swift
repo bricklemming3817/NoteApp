@@ -96,28 +96,28 @@ struct NoteWidgetEntryView: View {
     // MARK: – Layout helpers
     private var baseHorizontalPadding: CGFloat {
         switch family {
-        case .systemSmall: return 6
-        case .systemMedium: return 10
-        case .systemLarge: return 12
-        default: return 8
+        case .systemSmall: return 14
+        case .systemMedium: return 20
+        case .systemLarge: return 24
+        default: return 16
         }
     }
 
     private var baseVerticalPadding: CGFloat {
         switch family {
-        case .systemSmall: return 6
-        case .systemMedium: return 12
-        case .systemLarge: return 14
-        default: return 10
+        case .systemSmall: return 12
+        case .systemMedium: return 18
+        case .systemLarge: return 22
+        default: return 14
         }
     }
 
     private var titleFont: Font {
         switch family {
-        case .systemSmall: return .system(size: 18, weight: .semibold)
-        case .systemMedium: return .system(size: 20, weight: .semibold)
-        case .systemLarge: return .system(size: 22, weight: .semibold)
-        default: return .headline
+        case .systemSmall: return .system(size: 18, weight: .regular)
+        case .systemMedium: return .system(size: 20, weight: .regular)
+        case .systemLarge: return .system(size: 22, weight: .regular)
+        default: return .system(size: 18, weight: .regular)
         }
     }
 
@@ -150,10 +150,10 @@ struct NoteWidgetEntryView: View {
 
     private var baseSpacing: CGFloat {
         switch family {
-        case .systemSmall: return 6
-        case .systemMedium: return 8
-        case .systemLarge: return 10
-        default: return 8
+        case .systemSmall: return 10
+        case .systemMedium: return 12
+        case .systemLarge: return 14
+        default: return 10
         }
     }
 
@@ -186,20 +186,20 @@ struct NoteWidgetEntryView: View {
 
     // MARK: – Dynamic layout metrics
     private var dynamicPadding: EdgeInsets {
-        let horizontal = adjustedPadding(base: baseHorizontalPadding)
-        let vertical = adjustedPadding(base: baseVerticalPadding)
+        let horizontal = adjustedPadding(base: baseHorizontalPadding, minimumFactor: 0.7)
+        let vertical = adjustedPadding(base: baseVerticalPadding, minimumFactor: 0.65)
         return EdgeInsets(top: vertical, leading: horizontal, bottom: vertical, trailing: horizontal)
     }
 
     private var dynamicSpacing: CGFloat {
         let base = baseSpacing
-        let reduction = base * 0.35 * contentDensity
-        return max(base - reduction, max(2, base * 0.5))
+        let reduction = base * 0.25 * contentDensity
+        return max(base - reduction, base * 0.7)
     }
 
-    private func adjustedPadding(base: CGFloat) -> CGFloat {
-        let reduction = base * 0.4 * contentDensity
-        return max(base - reduction, max(4, base * 0.55))
+    private func adjustedPadding(base: CGFloat, minimumFactor: CGFloat) -> CGFloat {
+        let reduction = base * 0.35 * contentDensity
+        return max(base - reduction, base * minimumFactor)
     }
 
     private var contentDensity: CGFloat {
