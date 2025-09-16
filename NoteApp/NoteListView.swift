@@ -65,6 +65,7 @@ struct NoteListView: View {
     // navigation / edit
     @State private var showingEditor = false
     @State private var selectedNote: Note?
+    @State private var pendingDeepLinkNoteID: String?
 
     // search text
     @State private var searchText = ""
@@ -107,6 +108,28 @@ struct NoteListView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
+
+                // Custom title row with compose button
+                HStack {
+                    Text("NoteApp")
+                        .font(.title)
+                    Spacer()
+                    Button {
+                        selectedNote = nil
+                        showingEditor = true
+                    } label: {
+                        Image(systemName: "square.and.pencil")
+                            .symbolRenderingMode(.monochrome)
+                            .foregroundStyle(.black)
+                            .font(.system(size: 22))
+                            .frame(width: 32, height: 32)
+                    }
+                    .buttonStyle(.plain)
+                    .contentShape(Rectangle())
+                }
+                .padding(.horizontal)
+                .padding(.top, 12)
+                .padding(.bottom, 8)
 
                 // Custom minimal search bar
                 searchBar
@@ -166,26 +189,19 @@ struct NoteListView: View {
             }
 
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar(.hidden, for: .navigationBar)
 
             .sheet(isPresented: $showingEditor) {
                 NoteEditorView(note: selectedNote)
             }
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    HStack {
-                        Text("NoteApp")
-                            .font(.title)
-                        Spacer()
-                        Button {
-                            selectedNote = nil
-                            showingEditor = true
-                        } label: {
-                            Image(systemName: "square.and.pencil")
-                                .symbolRenderingMode(.monochrome)
-                                .foregroundStyle(.black)
-                        }
+            .onOpenURL { url in
+                handleDeepLink(url)
+            }
+            .onChange(of: notes) { _ in
+                if let pending = pendingDeepLinkNoteID {
+                    if openNote(withID: pending) {
+                        pendingDeepLinkNoteID = nil
                     }
-                    .frame(maxWidth: .infinity)
                 }
             }
             .onAppear {
@@ -363,7 +379,7 @@ struct NoteListView: View {
                 withAnimation {
                     note.deletedAt  = Date()
                     note.isArchived = false
-                    let id = String(Int(note.createdAt.timeIntervalSince1970 * 1000))
+                    let id = noteID(for: note)
                     PinnedNotesStore.remove(id: id)
                     WidgetShared.removeNote(id: id)
                 }
@@ -395,7 +411,7 @@ struct NoteListView: View {
             Button {
                 withAnimation {
                     note.deletedAt = nil
-                    let id = String(Int(note.createdAt.timeIntervalSince1970 * 1000))
+                    let id = noteID(for: note)
                     WidgetShared.upsertNote(id: id, content: note.content)
                 }
             } label: {
@@ -407,7 +423,7 @@ struct NoteListView: View {
             Button(role: .destructive) {
                 withAnimation {
                     modelContext.delete(note)
-                    let id = String(Int(note.createdAt.timeIntervalSince1970 * 1000))
+                    let id = noteID(for: note)
                     WidgetShared.removeNote(id: id)
                 }
             } label: {
@@ -477,7 +493,7 @@ struct NoteListView: View {
                 withAnimation {
                     note.deletedAt  = Date()
                     note.isArchived = false
-                    let id = String(Int(note.createdAt.timeIntervalSince1970 * 1000))
+                    let id = noteID(for: note)
                     PinnedNotesStore.remove(id: id)
                     WidgetShared.removeNote(id: id)
                 }
@@ -518,7 +534,7 @@ struct NoteListView: View {
             Button {
                 withAnimation {
                     note.deletedAt = nil
-                    let id = String(Int(note.createdAt.timeIntervalSince1970 * 1000))
+                    let id = noteID(for: note)
                     WidgetShared.upsertNote(id: id, content: note.content)
                 }
             } label: {
@@ -530,7 +546,7 @@ struct NoteListView: View {
             Button(role: .destructive) {
                 withAnimation {
                     modelContext.delete(note)
-                    let id = String(Int(note.createdAt.timeIntervalSince1970 * 1000))
+                    let id = noteID(for: note)
                     WidgetShared.removeNote(id: id)
                 }
             } label: {
@@ -604,7 +620,7 @@ struct NoteListView: View {
             Button(role: .destructive) {
                 withAnimation {
                     note.deletedAt = Date()
-                    let id = String(Int(note.createdAt.timeIntervalSince1970 * 1000))
+                    let id = noteID(for: note)
                     PinnedNotesStore.remove(id: id)
                     WidgetShared.removeNote(id: id)
                 }
@@ -617,14 +633,26 @@ struct NoteListView: View {
 
 // MARK: – Widget helpers
 extension NoteListView {
+    private func noteID(for note: Note) -> String {
+        String(Int(note.createdAt.timeIntervalSince1970 * 1000))
+    }
+
+    @discardableResult
+    private func openNote(withID id: String) -> Bool {
+        guard let target = notes.first(where: { noteID(for: $0) == id }) else { return false }
+        selectedNote = target
+        showingEditor = true
+        return true
+    }
+
     private func pinToWidget(_ note: Note) {
         // Use a stable id derived from createdAt (milliseconds since 1970)
-        let id = String(Int(note.createdAt.timeIntervalSince1970 * 1000))
+        let id = noteID(for: note)
         WidgetShared.savePinned(id: id, content: note.content, updatedAt: note.updatedAt)
     }
 
     private func togglePinned(_ note: Note, makePinned: Bool) {
-        let id = String(Int(note.createdAt.timeIntervalSince1970 * 1000))
+        let id = noteID(for: note)
         PinnedNotesStore.setPinned(makePinned, id: id)
         if makePinned {
             // Also ensure widget selection list has the latest content
@@ -634,7 +662,7 @@ extension NoteListView {
     }
 
     private func isPinned(_ note: Note) -> Bool {
-        let id = String(Int(note.createdAt.timeIntervalSince1970 * 1000))
+        let id = noteID(for: note)
         return PinnedNotesStore.isPinned(id: id)
     }
 }
@@ -648,7 +676,7 @@ extension NoteListView {
         for note in notes {
             if let deleted = note.deletedAt, deleted < cutoff {
                 modelContext.delete(note)
-                let id = String(Int(note.createdAt.timeIntervalSince1970 * 1000))
+                let id = noteID(for: note)
                 PinnedNotesStore.remove(id: id)
                 WidgetShared.removeNote(id: id)
                 didDelete = true
@@ -663,7 +691,7 @@ extension NoteListView {
     private func syncWidgetNotesMap() {
         let selectable = notes.filter { $0.deletedAt == nil }
         let items: [(id: String, content: String)] = selectable.map {
-            (String(Int($0.createdAt.timeIntervalSince1970 * 1000)), $0.content)
+            (noteID(for: $0), $0.content)
         }
         WidgetShared.setAllNotes(items)
     }
@@ -703,5 +731,29 @@ extension NoteListView {
                 .stroke(Color.secondary.opacity(0.15), lineWidth: 1)
         )
         .shadow(color: .black.opacity(0.04), radius: 2, x: 0, y: 1)
+    }
+}
+
+// MARK: – Deep link handling
+extension NoteListView {
+    private func handleDeepLink(_ url: URL) {
+        guard url.scheme == "noteapp" else { return }
+
+        guard url.host == "note" else { return }
+
+        let pathComponents = url.pathComponents.filter { $0 != "/" }
+        var candidateID = pathComponents.first
+        if candidateID == nil {
+            candidateID = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                .queryItems?
+                .first(where: { $0.name == "id" })?
+                .value
+        }
+
+        guard let targetID = candidateID else { return }
+
+        if !openNote(withID: targetID) {
+            pendingDeepLinkNoteID = targetID
+        }
     }
 }

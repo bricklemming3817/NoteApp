@@ -17,6 +17,32 @@ struct NoteEditorView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
+                // Custom header with cancel / save actions
+                HStack {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark")
+                            .symbolRenderingMode(.monochrome)
+                            .foregroundStyle(.secondary)
+                            .font(.system(size: 18, weight: .regular))
+                            .frame(width: 36, height: 36)
+                    }
+                    .buttonStyle(.plain)
+                    .contentShape(Rectangle())
+
+                    Spacer()
+
+                    Button(action: { saveNote() }) {
+                        Image(systemName: "checkmark")
+                            .symbolRenderingMode(.monochrome)
+                            .foregroundStyle(.secondary)
+                            .font(.system(size: 18, weight: .regular))
+                            .frame(width: 36, height: 36)
+                    }
+                    .buttonStyle(.plain)
+                    .contentShape(Rectangle())
+                }
+                .padding(.vertical, 8)
+
                 Divider()
 
                 // Timestamp at top, centered
@@ -42,30 +68,7 @@ struct NoteEditorView: View {
             .ignoresSafeArea(.keyboard, edges: .bottom)
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "xmark")
-                            .symbolRenderingMode(.monochrome)
-                            .foregroundStyle(.secondary)
-                            .font(.system(size: 18, weight: .regular))
-                            .accessibilityLabel("Cancel")
-                    }
-                    .tint(.secondary)
-                    .padding(.leading, 8)
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(action: { saveNote() }) {
-                        Image(systemName: "checkmark")
-                            .symbolRenderingMode(.monochrome)
-                            .foregroundStyle(.secondary)
-                            .font(.system(size: 18, weight: .regular))
-                            .accessibilityLabel("Save")
-                    }
-                    .tint(.secondary)
-                    .padding(.trailing, 8)
-                }
-            }
+            .toolbar(.hidden, for: .navigationBar)
         }
     }
 

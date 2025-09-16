@@ -5,6 +5,7 @@ enum WidgetShared {
     private static let contentKey   = "widget.note.content"     // legacy
     private static let updatedAtKey = "widget.note.updatedAt"   // legacy
     private static let notesMapKey  = "widget.notes.map"        // [String: String]
+    private static let selectedIDKey = "widget.selected.id"
 
     private static var defaults: UserDefaults? {
         UserDefaults(suiteName: appGroupID)
@@ -28,5 +29,9 @@ enum WidgetShared {
     static func content(for id: String) -> String? {
         let map = (defaults?.dictionary(forKey: notesMapKey) as? [String: String]) ?? [:]
         return map[id]
+    }
+
+    static func selectedPinnedID() -> String? {
+        defaults?.string(forKey: selectedIDKey)
     }
 }

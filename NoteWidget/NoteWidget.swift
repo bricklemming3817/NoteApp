@@ -11,6 +11,7 @@ import SwiftUI
 struct NoteEntry: TimelineEntry {
     let date: Date
     let content: String
+    let noteID: String?
 }
 
 struct Provider: AppIntentTimelineProvider {
@@ -18,29 +19,33 @@ struct Provider: AppIntentTimelineProvider {
     typealias Intent = SelectPinnedNoteIntent
 
     func placeholder(in context: Context) -> NoteEntry {
-        NoteEntry(date: Date(), content: "Pin a note from the app")
+        NoteEntry(date: Date(), content: "Pin a note from the app", noteID: nil)
     }
 
     func snapshot(for configuration: SelectPinnedNoteIntent, in context: Context) async -> NoteEntry {
         if let note = configuration.note, let content = WidgetShared.content(for: note.id) {
-            return NoteEntry(date: Date(), content: content)
+            return NoteEntry(date: Date(), content: content, noteID: note.id)
         }
         if let data = WidgetShared.read() { // legacy fallback
-            return NoteEntry(date: Date(), content: data.content)
+            return NoteEntry(date: Date(), content: data.content, noteID: WidgetShared.selectedPinnedID())
         }
         return placeholder(in: context)
     }
 
     func timeline(for configuration: SelectPinnedNoteIntent, in context: Context) async -> Timeline<NoteEntry> {
         let content: String
+        let noteID: String?
         if let note = configuration.note, let c = WidgetShared.content(for: note.id) {
             content = c
+            noteID = note.id
         } else if let data = WidgetShared.read() {
             content = data.content
+            noteID = WidgetShared.selectedPinnedID()
         } else {
             content = "Pin a note from the app"
+            noteID = nil
         }
-        let entry = NoteEntry(date: Date(), content: content)
+        let entry = NoteEntry(date: Date(), content: content, noteID: noteID)
         return Timeline(entries: [entry], policy: .never)
     }
 }
@@ -55,12 +60,7 @@ struct NoteWidgetEntryView: View {
         let parts = split(entry.content)
         let titleText = normalize(parts.title)
         let bodyText  = parts.body.map(normalize)
-        VStack(alignment: .leading, spacing: vSpacing) {
-            // Accent rule
-            Capsule()
-                .fill(.secondary.opacity(0.45))
-                .frame(width: accentWidth, height: 3)
-
+        VStack(alignment: .leading, spacing: dynamicSpacing) {
             // Title (first line)
             Text(titleText)
                 .font(titleFont)
@@ -77,7 +77,7 @@ struct NoteWidgetEntryView: View {
             if let body = bodyText, !body.isEmpty {
                 Text(body)
                     .font(bodyFont)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.primary)
                     .lineLimit(bodyLineLimit)
                     .multilineTextAlignment(.leading)
                     .lineSpacing(bodyLineSpacing)
@@ -86,11 +86,15 @@ struct NoteWidgetEntryView: View {
             }
             Spacer(minLength: 0)
         }
-        .padding(EdgeInsets(top: vPadding, leading: hPadding, bottom: vPadding, trailing: hPadding))
+        .padding(dynamicPadding)
+        .widgetURL(deepLinkURL(for: entry.noteID))
+        .transaction { transaction in
+            transaction.animation = nil
+        }
     }
 
     // MARK: – Layout helpers
-    private var hPadding: CGFloat {
+    private var baseHorizontalPadding: CGFloat {
         switch family {
         case .systemSmall: return 6
         case .systemMedium: return 10
@@ -99,7 +103,7 @@ struct NoteWidgetEntryView: View {
         }
     }
 
-    private var vPadding: CGFloat {
+    private var baseVerticalPadding: CGFloat {
         switch family {
         case .systemSmall: return 6
         case .systemMedium: return 12
@@ -144,21 +148,12 @@ struct NoteWidgetEntryView: View {
         }
     }
 
-    private var vSpacing: CGFloat {
+    private var baseSpacing: CGFloat {
         switch family {
         case .systemSmall: return 6
         case .systemMedium: return 8
         case .systemLarge: return 10
         default: return 8
-        }
-    }
-
-    private var accentWidth: CGFloat {
-        switch family {
-        case .systemSmall: return 26
-        case .systemMedium: return 34
-        case .systemLarge: return 42
-        default: return 30
         }
     }
 
@@ -182,6 +177,42 @@ struct NoteWidgetEntryView: View {
         case .uppercase: return text.uppercased()
         case .none: return text
         }
+    }
+
+    private func deepLinkURL(for noteID: String?) -> URL? {
+        guard let noteID else { return URL(string: "noteapp://") }
+        return URL(string: "noteapp://note/\(noteID)")
+    }
+
+    // MARK: – Dynamic layout metrics
+    private var dynamicPadding: EdgeInsets {
+        let horizontal = adjustedPadding(base: baseHorizontalPadding)
+        let vertical = adjustedPadding(base: baseVerticalPadding)
+        return EdgeInsets(top: vertical, leading: horizontal, bottom: vertical, trailing: horizontal)
+    }
+
+    private var dynamicSpacing: CGFloat {
+        let base = baseSpacing
+        let reduction = base * 0.35 * contentDensity
+        return max(base - reduction, max(2, base * 0.5))
+    }
+
+    private func adjustedPadding(base: CGFloat) -> CGFloat {
+        let reduction = base * 0.4 * contentDensity
+        return max(base - reduction, max(4, base * 0.55))
+    }
+
+    private var contentDensity: CGFloat {
+        let trimmed = entry.content.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty { return 0 }
+
+        let characters = trimmed.count
+        let lines = max(1, trimmed.split(whereSeparator: \.isNewline).count)
+
+        let charComponent = min(max(CGFloat(characters - 60) / 240, 0), 1)
+        let lineComponent = min(CGFloat(max(lines - 2, 0)) / 6, 1)
+
+        return min(1, charComponent * 0.6 + lineComponent * 0.4)
     }
 }
 
