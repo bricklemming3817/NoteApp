@@ -60,6 +60,7 @@ struct NoteEditorView: View {
                     .focused($focusedField)
                     .onAppear { focusedField = true }
                     .font(.body)
+                    .foregroundColor(.primary)
                     .padding(.horizontal,0)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
 
