@@ -4,6 +4,7 @@ import SwiftData
 struct NoteEditorView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss)     private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @FocusState private var focusedField: Bool
 
     @State private var noteContent: String
@@ -61,6 +62,7 @@ struct NoteEditorView: View {
                     .onAppear { focusedField = true }
                     .font(.body)
                     .foregroundColor(.primary)
+                    .tint(colorScheme == .dark ? .white : Color.accentColor)
                     .padding(.horizontal,0)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
 

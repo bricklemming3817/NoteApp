@@ -78,6 +78,7 @@ struct NoteListView: View {
     @State private var isArchiveExpanded = false
     @State private var isTrashExpanded   = false
     private let folderRowHeight: CGFloat = 64
+    private static let widgetSyncQueue = DispatchQueue(label: "noteapp.widgetSync", qos: .utility)
     private var pinReorderAnimation: Animation {
         .spring(response: 0.45, dampingFraction: 0.88, blendDuration: 0.2)
     }
@@ -213,15 +214,15 @@ struct NoteListView: View {
             .onOpenURL { url in
                 handleDeepLink(url)
             }
-            .onChange(of: notes, initial: false) { _, newNotes in
-                guard let pending = pendingDeepLinkNoteID else { return }
-                if openNote(withID: pending, in: newNotes) {
+            .onChange(of: notes, initial: true) { _, newNotes in
+                syncWidgetNotesMap(using: newNotes)
+                if let pending = pendingDeepLinkNoteID,
+                   openNote(withID: pending, in: newNotes) {
                     pendingDeepLinkNoteID = nil
                 }
             }
             .onAppear {
                 purgeOldTrash()
-                syncWidgetNotesMap()
             }
         }
     }
@@ -691,7 +692,10 @@ extension NoteListView {
                 if note.isPinned {
                     note.isPinned = false
                 }
-                WidgetShared.removeNote(id: noteID(for: note))
+                let noteID = noteID(for: note)
+                NoteListView.widgetSyncQueue.async {
+                    WidgetShared.removeNote(id: noteID)
+                }
                 modelContext.delete(note)
                 didDelete = true
             }
@@ -702,12 +706,17 @@ extension NoteListView {
     }
 
     /// Keeps the App Group notes map in sync with current (non-deleted) notes
-    private func syncWidgetNotesMap() {
-        let selectable = notes.filter { $0.deletedAt == nil }
-        let items: [(id: String, content: String)] = selectable.map {
-            (noteID(for: $0), $0.content)
+    private func syncWidgetNotesMap(using snapshot: [Note]? = nil) {
+        let source = snapshot ?? notes
+        let items: [(id: String, content: String)] = source
+            .filter { $0.deletedAt == nil }
+            .map { note in
+                (noteID(for: note), note.content)
+            }
+
+        NoteListView.widgetSyncQueue.async {
+            WidgetShared.setAllNotes(items)
         }
-        WidgetShared.setAllNotes(items)
     }
 }
 
